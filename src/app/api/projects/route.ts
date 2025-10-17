@@ -1,90 +1,31 @@
-// src/app/api/projects/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
-import { getUserFromRequest } from '@/lib/auth';
+import { NextRequest } from 'next/server';
+import { withAuth, withRole, successResponse, errorResponse } from '@/lib/api-middleware';
 import Project from '@/models/Project';
 
-// GET all projects
-export async function GET(request: NextRequest) {
-  try {
-    await connectDB();
+export const GET = withAuth(async (request: NextRequest, user) => {
+  const projects = await Project.find()
+    .populate('createdBy', 'name email')
+    .sort({ createdAt: -1 });
 
-    const userPayload = getUserFromRequest(request);
-    if (!userPayload) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+  return successResponse({ projects });
+});
 
-    const projects = await Project.find()
-      .populate('createdBy', 'name email')
-      .sort({ createdAt: -1 });
+export const POST = withRole('manager', async (request: NextRequest, user) => {
+  const { title, description, deadline } = await request.json();
 
-    return NextResponse.json({
-      success: true,
-      projects
-    });
-  } catch (error) {
-    console.error('Get projects error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Server error' },
-      { status: 500 }
-    );
+  if (!title || !description || !deadline) {
+    return errorResponse('All fields are required');
   }
-}
 
-// POST create project
-export async function POST(request: NextRequest) {
-  try {
-    await connectDB();
+  const project = await Project.create({
+    title,
+    description,
+    deadline: new Date(deadline),
+    createdBy: user.userId
+  });
 
-    const userPayload = getUserFromRequest(request);
-    if (!userPayload) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+  const populatedProject = await Project.findById(project._id)
+    .populate('createdBy', 'name email');
 
-    // Check if user is manager
-    if (userPayload.role !== 'manager') {
-      return NextResponse.json(
-        { success: false, error: 'Only managers can create projects' },
-        { status: 403 }
-      );
-    }
-
-    const { title, description, deadline } = await request.json();
-
-    // Validation
-    if (!title || !description || !deadline) {
-      return NextResponse.json(
-        { success: false, error: 'All fields are required' },
-        { status: 400 }
-      );
-    }
-
-    const project = await Project.create({
-      title,
-      description,
-      deadline: new Date(deadline),
-      createdBy: userPayload.userId
-    });
-
-    const populatedProject = await Project.findById(project._id)
-      .populate('createdBy', 'name email');
-
-    return NextResponse.json({
-      success: true,
-      project: populatedProject
-    });
-  } catch (error) {
-    console.error('Create project error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Server error' },
-      { status: 500 }
-    );
-  }
-}
-
+  return successResponse({ project: populatedProject });
+});

@@ -1,73 +1,23 @@
-// src/app/api/projects/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
-import { getUserFromRequest } from '@/lib/auth';
+import { NextRequest } from 'next/server';
+import { withAuth, withRole, successResponse, errorResponse } from '@/lib/api-middleware';
 import Project from '@/models/Project';
 import Task from '@/models/Task';
 
-// GET single project
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    await connectDB();
-
-    const userPayload = getUserFromRequest(request);
-    if (!userPayload) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
+export const GET = withAuth(
+  async (request: NextRequest, user, { params }: { params: { id: string } }) => {
     const project = await Project.findById(params.id)
       .populate('createdBy', 'name email');
 
     if (!project) {
-      return NextResponse.json(
-        { success: false, error: 'Project not found' },
-        { status: 404 }
-      );
+      return errorResponse('Project not found', 404);
     }
 
-    return NextResponse.json({
-      success: true,
-      project
-    });
-  } catch (error) {
-    console.error('Get project error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Server error' },
-      { status: 500 }
-    );
+    return successResponse({ project });
   }
-}
+);
 
-// PUT update project
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    await connectDB();
-
-    const userPayload = getUserFromRequest(request);
-    if (!userPayload) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user is manager
-    if (userPayload.role !== 'manager') {
-      return NextResponse.json(
-        { success: false, error: 'Only managers can update projects' },
-        { status: 403 }
-      );
-    }
-
+export const PUT = withRole('manager',
+  async (request: NextRequest, user, { params }: { params: { id: string } }) => {
     const body = await request.json();
 
     const project = await Project.findByIdAndUpdate(
@@ -77,71 +27,24 @@ export async function PUT(
     ).populate('createdBy', 'name email');
 
     if (!project) {
-      return NextResponse.json(
-        { success: false, error: 'Project not found' },
-        { status: 404 }
-      );
+      return errorResponse('Project not found', 404);
     }
 
-    return NextResponse.json({
-      success: true,
-      project
-    });
-  } catch (error) {
-    console.error('Update project error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Server error' },
-      { status: 500 }
-    );
+    return successResponse({ project });
   }
-}
+);
 
-// DELETE project
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    await connectDB();
-
-    const userPayload = getUserFromRequest(request);
-    if (!userPayload) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user is manager
-    if (userPayload.role !== 'manager') {
-      return NextResponse.json(
-        { success: false, error: 'Only managers can delete projects' },
-        { status: 403 }
-      );
-    }
-
+export const DELETE = withRole('manager',
+  async (request: NextRequest, user, { params }: { params: { id: string } }) => {
     const project = await Project.findById(params.id);
+
     if (!project) {
-      return NextResponse.json(
-        { success: false, error: 'Project not found' },
-        { status: 404 }
-      );
+      return errorResponse('Project not found', 404);
     }
 
-    // Delete all tasks associated with project
     await Task.deleteMany({ project: params.id });
-
     await Project.findByIdAndDelete(params.id);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Project deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete project error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Server error' },
-      { status: 500 }
-    );
+    return successResponse({ message: 'Project deleted successfully' });
   }
-}
+);

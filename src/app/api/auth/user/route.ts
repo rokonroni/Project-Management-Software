@@ -1,65 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
-import { getUserFromRequest } from '@/lib/auth';
+import { NextRequest } from 'next/server';
+import { withAuth, successResponse, errorResponse } from '@/lib/api-middleware';
 import User from '@/models/User';
 
-export async function GET(request: NextRequest) {
-  try {
-    await connectDB();
-
-    const userPayload = getUserFromRequest(request);
-    if (!userPayload) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const user = await User.findById(userPayload.userId).select('-password');
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    console.error('Get user error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Server error' },
-      { status: 500 }
-    );
+export const GET = withAuth(async (request: NextRequest, user) => {
+  const userData = await User.findById(user.userId).select('-password');
+  
+  if (!userData) {
+    return errorResponse('User not found', 404);
   }
-}
 
-// Get all developers
-export async function POST(request: NextRequest) {
-  try {
-    await connectDB();
+  return successResponse({ user: userData });
+});
 
-    const userPayload = getUserFromRequest(request);
-    if (!userPayload) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const developers = await User.find({ role: 'developer' }).select('-password');
-
-    return NextResponse.json({
-      success: true,
-      developers
-    });
-  } catch (error) {
-    console.error('Get developers error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Server error' },
-      { status: 500 }
-    );
-  }
-}
+export const POST = withAuth(async (request: NextRequest, user) => {
+  const developers = await User.find({ role: 'developer' }).select('-password');
+  return successResponse({ developers });
+});
