@@ -1,10 +1,13 @@
 // src/types/index.ts
 
+import mongoose from "mongoose";
+
 export interface IUser {
   _id: string;
   name: string;
   email: string;
   role: 'manager' | 'developer';
+  password?: string;
   createdAt: Date;
 }
 
@@ -46,10 +49,10 @@ export interface ISubTask {
 }
 
 export interface IComment {
-  _id: string;
+  _id: string | null | undefined;
   content: string;
-  author: string | IUser;
-  taskId: string;
+  author: mongoose.Types.ObjectId;
+  taskId: mongoose.Types.ObjectId;
   taskType: 'Task' | 'SubTask';
   createdAt: Date;
 }

@@ -1,10 +1,10 @@
-import mongoose, { Schema, Model } from 'mongoose';
 import { IComment } from '@/types';
+import mongoose, { Model, Schema } from 'mongoose';
 
 const CommentSchema = new Schema<IComment>({
   content: { type: String, required: true },
   author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  taskId: { type: Schema.Types.ObjectId, refPath: 'taskType' },
+  taskId: { type: mongoose.Schema.Types.ObjectId, refPath: 'taskType' },
   taskType: {
     type: String,
     enum: ['Task', 'SubTask'],

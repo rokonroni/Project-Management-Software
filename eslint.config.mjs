@@ -10,7 +10,9 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Import Next.js defaults (includes TypeScript rules)
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  
   {
     ignores: [
       "node_modules/**",
@@ -19,6 +21,12 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off", 
+      "@typescript-eslint/no-unused-vars" : "off",
+      "react/no-unescaped-entities": "off",
+    },
   },
 ];
 

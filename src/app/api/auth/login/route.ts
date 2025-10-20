@@ -15,7 +15,7 @@ export const POST = withDB(async (request: NextRequest) => {
     return errorResponse('Invalid credentials');
   }
 
-  const isValidPassword = await comparePassword(password, user.password);
+  const isValidPassword = await comparePassword(password, user.password as string);
   if (!isValidPassword) {
     return errorResponse('Invalid credentials');
   }

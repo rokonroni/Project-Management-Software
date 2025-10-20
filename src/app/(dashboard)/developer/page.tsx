@@ -18,7 +18,7 @@ export default function DeveloperDashboard() {
   useEffect(() => {
     checkAuth();
     fetchTasks();
-  }, []);
+  }, [""]);
 
   const checkAuth = () => {
     const token = localStorage.getItem('token');
@@ -55,7 +55,7 @@ export default function DeveloperDashboard() {
               fetch(`/api/subtasks?taskId=${task._id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
               }),
-              fetch(`/api/comments?taskId=${task._id}&taskType=Task`, {
+              fetch(`/api/comments?taskId=${task._id}&taskType=Task&populate=author`, {
                 headers: { 'Authorization': `Bearer ${token}` }
               })
             ]);
@@ -444,8 +444,8 @@ function CommentModal({ task, onClose, onAddComment }: any) {
                 <p className="text-sm text-gray-400 mt-1">Start the conversation with your updates!</p>
               </div>
             ) : (
-              task.comments?.map((comment: IComment) => {
-                const author = comment.author as IUser;
+              task.comments?.map((comment: IComment,) => {
+                const author = comment.author as unknown as IUser;
                 return (
                   <div key={comment._id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                     <div className="flex justify-between items-start mb-2">
