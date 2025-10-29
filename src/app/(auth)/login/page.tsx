@@ -1,9 +1,9 @@
 'use client';
 
+import { Briefcase, Code, Lock, LogIn, Mail, Shield, User, UserPlus } from 'lucide-react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { LogIn, UserPlus, Mail, Lock, User, Briefcase, Code, Sparkles, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -73,6 +73,12 @@ export default function LoginPage() {
           const dashboardUrl = data.user.role === 'manager' ? '/manager' : '/developer';
           window.location.href = dashboardUrl;
         }, 1000);
+
+        Swal.fire({
+          title: "Login Successfull!",
+          icon: "success",
+          draggable: false
+        });
       }
     } catch (err) {
       toast.dismiss(loadingToast);

@@ -2,9 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Clock, MessageSquare, Plus, ChevronDown, ChevronUp, LogOut } from 'lucide-react';
+import { 
+  CheckCircle, Clock, MessageSquare, Plus, ChevronDown, ChevronUp,
+  Code, Zap, Trophy, TrendingUp, AlertCircle, PlayCircle, Timer, Tag
+} from 'lucide-react';
 import { ITask, ISubTask, IComment, IUser, IProject } from '@/types';
 import { formatDate, getTaskStatusColor, getPriorityColor } from '@/lib/utils';
+import toast from 'react-hot-toast';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { DashboardHeader } from '@/components/shared/DashboardHeader';
+import { StatsCard } from '@/components/shared/StatsCard';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Badge } from '@/components/shared/Badge';
+import { Modal } from '@/components/shared/Modal';
+import { CommentSection } from '@/components/shared/CommentSection';
+import { FormInput } from '@/components/shared/FormInput';
+import { FormTextarea } from '@/components/shared/FormTextarea';
+import Swal from 'sweetalert2';
+
 
 export default function DeveloperDashboard() {
   const router = useRouter();
@@ -18,7 +33,7 @@ export default function DeveloperDashboard() {
   useEffect(() => {
     checkAuth();
     fetchTasks();
-  }, [""]);
+  }, []);
 
   const checkAuth = () => {
     const token = localStorage.getItem('token');
@@ -36,6 +51,7 @@ export default function DeveloperDashboard() {
     }
 
     setUser(parsedUser);
+    document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`;
   };
 
   const fetchTasks = async () => {
@@ -48,14 +64,13 @@ export default function DeveloperDashboard() {
       const data = await res.json();
 
       if (data.success) {
-        // Fetch subtasks and comments for each task
         const tasksWithDetails = await Promise.all(
           data.tasks.map(async (task: ITask) => {
             const [subtasksRes, commentsRes] = await Promise.all([
               fetch(`/api/subtasks?taskId=${task._id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
               }),
-              fetch(`/api/comments?taskId=${task._id}&taskType=Task&populate=author`, {
+              fetch(`/api/comments?taskId=${task._id}&taskType=Task`, {
                 headers: { 'Authorization': `Bearer ${token}` }
               })
             ]);
@@ -75,18 +90,34 @@ export default function DeveloperDashboard() {
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      toast.error('Failed to load tasks');
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/login');
+    toast.promise(
+      new Promise((resolve) => {
+        setTimeout(() => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+          router.push('/login');
+          resolve(true);
+        }, 500);
+      }),
+      {
+        loading: 'Signing out...',
+        success: 'See you later! 👋',
+        error: 'Error signing out',
+      }
+    );
   };
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
+    const loadingToast = toast.loading('Updating status...');
+    
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/tasks/${taskId}`, {
@@ -98,15 +129,24 @@ export default function DeveloperDashboard() {
         body: JSON.stringify({ status: newStatus })
       });
 
+      toast.dismiss(loadingToast);
+
       if (res.ok) {
+        toast.success(`Status updated to ${newStatus}! ${newStatus === 'completed' ? '🎉' : '📝'}`);
         fetchTasks();
+      } else {
+        toast.error('Failed to update status');
       }
     } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error('Network error!');
       console.error('Error updating task status:', error);
     }
   };
 
   const handleSubtaskStatusChange = async (subtaskId: string, newStatus: string) => {
+    const loadingToast = toast.loading('Updating subtask...');
+    
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/subtasks/${subtaskId}`, {
@@ -118,15 +158,24 @@ export default function DeveloperDashboard() {
         body: JSON.stringify({ status: newStatus })
       });
 
+      toast.dismiss(loadingToast);
+
       if (res.ok) {
+        toast.success('Subtask updated! ✅');
         fetchTasks();
+      } else {
+        toast.error('Failed to update subtask');
       }
     } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error('Network error!');
       console.error('Error updating subtask status:', error);
     }
   };
 
   const handleCreateSubtask = async (taskId: string, data: any) => {
+    const loadingToast = toast.loading('Creating subtask...');
+    
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/subtasks', {
@@ -138,16 +187,25 @@ export default function DeveloperDashboard() {
         body: JSON.stringify({ ...data, task: taskId })
       });
 
+      toast.dismiss(loadingToast);
+
       if (res.ok) {
+        toast.success('Subtask created! 🎯');
         fetchTasks();
         setShowSubtaskModal(null);
+      } else {
+        toast.error('Failed to create subtask');
       }
     } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error('Network error!');
       console.error('Error creating subtask:', error);
     }
   };
 
-  const handleAddComment = async (taskId: string, content: string) => {
+  const handleAddComment = async (content: string) => {
+    if (!showCommentModal) return false;
+    
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/comments', {
@@ -156,166 +214,279 @@ export default function DeveloperDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ content, taskId, taskType: 'Task' })
+        body: JSON.stringify({ content, taskId: showCommentModal._id, taskType: 'Task' })
       });
 
       if (res.ok) {
-        fetchTasks();
+        await fetchTasks();
+        const updatedTask = tasks.find(t => t._id === showCommentModal._id);
+        if (updatedTask) {
+          setShowCommentModal(updatedTask);
+        }
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('Error adding comment:', error);
+      return false;
     }
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'This action cannot be undone.',
+      icon: 'warning', 
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+    if (!result.isConfirmed) return;
+
+    const loadingToast = toast.loading('Deleting comment...');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      toast.dismiss(loadingToast);
+
+      if (res.ok) {
+        toast.success('Comment deleted successfully!');
+        await fetchTasks();
+        if (showCommentModal) {
+          const updatedTask = tasks.find(t => t._id === showCommentModal._id);
+          if (updatedTask) {
+            setShowCommentModal(updatedTask);
+          }
+        }
+        await Swal.fire({
+          title: "Deleted!",
+        text: "The task has been deleted.",
+        icon: "success", 
+        })
+      } else {
+        toast.error('Failed to delete comment');
+      }
+      
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error('Network error!');
+      console.error('Error deleting comment:', error);
+    }
+  };
+
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.status === 'completed').length;
+  const inProgressTasks = tasks.filter(t => t.status === 'in-progress').length;
+  const pendingTasks = tasks.filter(t => t.status === 'pending').length;
+
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading your tasks..." />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-indigo-600 text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Developer Dashboard</h1>
-            <p className="text-indigo-100">Welcome, {user?.name}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="bg-white text-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-2 font-medium"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50">
+      <DashboardHeader
+        icon={Code}
+        title="Developer Dashboard"
+        subtitle={`Hey ${user?.name}, let's code! 💻`}
+        onLogout={handleLogout}
+      />
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatsCard
+            title="Total Tasks"
+            value={totalTasks}
+            icon={PlayCircle}
+            accentIcon={TrendingUp}
+            gradient="bg-gradient-to-br from-blue-500 to-blue-600"
+          />
+          <StatsCard
+            title="Completed"
+            value={completedTasks}
+            icon={CheckCircle}
+            accentIcon={Trophy}
+            gradient="bg-gradient-to-br from-green-500 to-emerald-600"
+          />
+          <StatsCard
+            title="In Progress"
+            value={inProgressTasks}
+            icon={Zap}
+            accentIcon={Code}
+            gradient="bg-gradient-to-br from-purple-500 to-purple-600"
+          />
+          <StatsCard
+            title="Pending"
+            value={pendingTasks}
+            icon={Timer}
+            accentIcon={AlertCircle}
+            gradient="bg-gradient-to-br from-orange-500 to-red-500"
+          />
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">My Tasks</h2>
+        {/* Tasks Section */}
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">My Tasks</h2>
+          <p className="text-gray-600">Manage your assigned tasks and track progress</p>
+        </div>
 
-        <div className="space-y-4">
-          {tasks.map((task) => {
-            const isExpanded = expandedTask === task._id;
-            const completedSubtasks = task.subtasks?.filter(st => st.status === 'completed').length || 0;
-            const project = task.project as IProject;
+        {/* Tasks List */}
+        {tasks.length === 0 ? (
+          <EmptyState
+            icon={Code}
+            title="No tasks assigned yet"
+            description="You're all caught up! Check back later for new assignments."
+          />
+        ) : (
+          <div className="space-y-4">
+            {tasks.map((task) => {
+              const isExpanded = expandedTask === task._id;
+              const completedSubtasks = task.subtasks?.filter(st => st.status === 'completed').length || 0;
+              const totalSubtasks = task.subtasks?.length || 0;
+              const project = task.project as IProject;
 
-            return (
-              <div key={task._id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold text-gray-800">{task.title}</h3>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${getPriorityColor(task.priority)}`}>
-                          {task.priority.toUpperCase()}
-                        </span>
+              return (
+                <div key={task._id} className="card card-hover overflow-hidden">
+                  <div className="p-6">
+                    {/* Task Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-xl font-bold text-gray-900">{task.title}</h3>
+                          <Badge variant={
+                            task.priority === 'high' ? 'danger' : 
+                            task.priority === 'medium' ? 'warning' : 'info'
+                          }>
+                            <Tag size={12} className="inline mr-1" />
+                            {task.priority}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-2 flex items-center gap-2">
+                          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold">
+                            {project.title}
+                          </span>
+                        </p>
+                        <p className="text-gray-700 mb-3">{task.description}</p>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{project.title}</p>
-                      <p className="text-gray-700">{task.description}</p>
+                      <div className={`w-3 h-3 rounded-full ${getTaskStatusColor(task.status, task.deadline, task.completedAt)}`}></div>
                     </div>
-                    <div className={`w-4 h-4 rounded-full ${getTaskStatusColor(task.status, task.deadline, task.completedAt)}`}></div>
-                  </div>
 
-                  <div className="flex items-center gap-4 mb-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Clock size={16} />
-                      <span>Due: {formatDate(task.deadline)}</span>
-                    </div>
-                    {task.subtasks && task.subtasks.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <CheckCircle size={16} />
-                        <span>{completedSubtasks}/{task.subtasks.length} Subtasks</span>
+                    {/* Task Meta */}
+                    <div className="flex items-center gap-4 mb-4 text-sm text-gray-600 flex-wrap">
+                      <div className="flex items-center gap-1 px-3 py-1 bg-gray-50 rounded-lg">
+                        <Clock size={14} />
+                        <span className="font-medium">{formatDate(task.deadline)}</span>
                       </div>
-                    )}
-                    <div className="flex items-center gap-1">
-                      <MessageSquare size={16} />
-                      <span>{task.comments?.length || 0} Comments</span>
+                      {totalSubtasks > 0 && (
+                        <div className="flex items-center gap-1 px-3 py-1 bg-purple-50 rounded-lg">
+                          <CheckCircle size={14} className="text-purple-600" />
+                          <span className="font-medium text-purple-700">{completedSubtasks}/{totalSubtasks} Subtasks</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1 px-3 py-1 bg-blue-50 rounded-lg">
+                        <MessageSquare size={14} className="text-blue-600" />
+                        <span className="font-medium text-blue-700">{task.comments?.length || 0} Comments</span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex gap-3 flex-wrap">
-                    <select
-                      value={task.status}
-                      onChange={(e) => handleStatusChange(task._id, e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
-
-                    <button
-                      onClick={() => setShowSubtaskModal(task._id)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                    >
-                      <Plus size={16} />
-                      Add Subtask
-                    </button>
-
-                    <button
-                      onClick={() => setShowCommentModal(task)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2"
-                    >
-                      <MessageSquare size={16} />
-                      Comments
-                    </button>
-
-                    {task.subtasks && task.subtasks.length > 0 && (
-                      <button
-                        onClick={() => setExpandedTask(isExpanded ? null : task._id)}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2"
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 flex-wrap">
+                      <select
+                        value={task.status}
+                        onChange={(e) => handleStatusChange(task._id, e.target.value)}
+                        className={`px-4 py-2 rounded-xl font-semibold border-2 transition-all cursor-pointer ${
+                          task.status === 'completed' 
+                            ? 'border-green-500 bg-green-50 text-green-700'
+                            : task.status === 'in-progress'
+                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                            : 'border-gray-300 bg-gray-50 text-gray-700'
+                        }`}
                       >
-                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        {isExpanded ? 'Hide' : 'Show'} Subtasks
+                        <option value="pending">📋 Pending</option>
+                        <option value="in-progress">⚡ In Progress</option>
+                        <option value="completed">✅ Completed</option>
+                      </select>
+
+                      <button
+                        onClick={() => setShowSubtaskModal(task._id)}
+                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl transition-all flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl"
+                      >
+                        <Plus size={16} />
+                        Add Subtask
                       </button>
+
+                      <button
+                        onClick={() => setShowCommentModal(task)}
+                        className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-gray-300 rounded-xl transition-all flex items-center gap-2 font-semibold"
+                      >
+                        <MessageSquare size={16} />
+                        Comments
+                      </button>
+
+                      {totalSubtasks > 0 && (
+                        <button
+                          onClick={() => setExpandedTask(isExpanded ? null : task._id)}
+                          className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-gray-300 rounded-xl transition-all flex items-center gap-2 font-semibold"
+                        >
+                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          {isExpanded ? 'Hide' : 'Show'} Subtasks
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Subtasks */}
+                    {isExpanded && totalSubtasks > 0 && (
+                      <div className="mt-6 pt-6 border-t border-gray-200 animate-slideDown">
+                        <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                          <CheckCircle size={18} className="text-purple-600" />
+                          Subtasks ({completedSubtasks}/{totalSubtasks})
+                        </h4>
+                        <div className="space-y-3">
+                          {task.subtasks?.map((subtask) => (
+                            <div key={subtask._id} className="flex items-center justify-between bg-gray-50 hover:bg-gray-100 p-4 rounded-xl transition-all border border-gray-200">
+                              <div className="flex-1">
+                                <p className="font-semibold text-gray-900">{subtask.title}</p>
+                                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                  <Clock size={12} />
+                                  Due: {formatDate(subtask.deadline)}
+                                </p>
+                              </div>
+                              <select
+                                value={subtask.status}
+                                onChange={(e) => handleSubtaskStatusChange(subtask._id, e.target.value)}
+                                className={`px-3 py-2 text-sm rounded-lg font-semibold border-2 cursor-pointer transition-all ${
+                                  subtask.status === 'completed'
+                                    ? 'border-green-500 bg-green-50 text-green-700'
+                                    : subtask.status === 'in-progress'
+                                    ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                    : 'border-gray-300 bg-white text-gray-700'
+                                }`}
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-
-                  {isExpanded && task.subtasks && task.subtasks.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <h4 className="font-semibold text-gray-800 mb-3">Subtasks</h4>
-                      <div className="space-y-2">
-                        {task.subtasks.map((subtask) => (
-                          <div key={subtask._id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-800">{subtask.title}</p>
-                              <p className="text-xs text-gray-600 mt-1">
-                                Due: {formatDate(subtask.deadline)}
-                              </p>
-                            </div>
-                            <select
-                              value={subtask.status}
-                              onChange={(e) => handleSubtaskStatusChange(subtask._id, e.target.value)}
-                              className="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="in-progress">In Progress</option>
-                              <option value="completed">Completed</option>
-                            </select>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {tasks.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No tasks assigned yet.</p>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Create Subtask Modal */}
+      {/* Modals */}
       {showSubtaskModal && (
         <CreateSubtaskModal
           taskId={showSubtaskModal}
@@ -324,13 +495,27 @@ export default function DeveloperDashboard() {
         />
       )}
 
-      {/* Comment Modal */}
       {showCommentModal && (
-        <CommentModal
-          task={showCommentModal}
+        <Modal
+          isOpen={!!showCommentModal}
           onClose={() => setShowCommentModal(null)}
-          onAddComment={handleAddComment}
-        />
+          title="Task Comments"
+          subtitle={showCommentModal.title}
+          maxWidth="2xl"
+        >
+          <div className="mb-4 px-3 py-2 bg-blue-50 rounded-lg inline-flex items-center gap-2 text-sm">
+            <MessageSquare size={14} className="text-blue-600" />
+            <span className="text-blue-700 font-medium">All team members can view and comment</span>
+          </div>
+          
+          <CommentSection
+            comments={showCommentModal.comments || []}
+            currentUserId={user?._id || ''}
+            onAddComment={handleAddComment}
+            onDeleteComment={handleDeleteComment}
+            placeholder="Share your progress, ask questions, or provide updates..."
+          />
+        </Modal>
       )}
     </div>
   );
@@ -346,161 +531,51 @@ function CreateSubtaskModal({ taskId, onClose, onCreate }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">Create Subtask</h2>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Create Subtask"
+      subtitle="Break down your task into smaller steps"
+      maxWidth="lg"
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <FormInput
+          label="Subtask Title"
+          name="title"
+          value={formData.title}
+          onChange={(value: string) => setFormData({ ...formData, title: value })}
+          placeholder="e.g., Setup database schema"
+          required
+        />
+
+        <FormTextarea
+          label="Description (Optional)"
+          name="description"
+          value={formData.description}
+          onChange={(value: string) => setFormData({ ...formData, description: value })}
+          placeholder="Add details about this subtask..."
+          rows={3}
+        />
+
+        <FormInput
+          label="Deadline"
+          type="date"
+          name="deadline"
+          value={formData.deadline}
+          onChange={(value: string) => setFormData({ ...formData, deadline: value })}
+          required
+        />
+
+        <div className="flex gap-3 pt-4">
+          <button type="submit" className="flex-1 btn btn-primary">
+            <Plus size={18} className="inline mr-2" />
+            Create Subtask
+          </button>
+          <button type="button" onClick={onClose} className="flex-1 btn btn-outline">
+            Cancel
+          </button>
         </div>
-
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Subtask Title</label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            ></textarea>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
-            <input
-              type="date"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              value={formData.deadline}
-              onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 font-medium"
-            >
-              Create Subtask
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 font-medium"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Comment Modal
-function CommentModal({ task, onClose, onAddComment }: any) {
-  const [newComment, setNewComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleAddComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim() || isSubmitting) return;
-
-    setIsSubmitting(true);
-    await onAddComment(task._id, newComment);
-    setNewComment('');
-    setIsSubmitting(false);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">Task Comments & Updates</h2>
-              <p className="text-sm text-gray-600 mt-1">{task.title}</p>
-            </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
-          </div>
-          <p className="text-xs text-gray-500 mt-2">💬 All team members can view and comment</p>
-        </div>
-
-        <div className="p-6">
-          <div className="space-y-4 mb-6">
-            {task.comments?.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageSquare size={48} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">No comments yet.</p>
-                <p className="text-sm text-gray-400 mt-1">Start the conversation with your updates!</p>
-              </div>
-            ) : (
-              task.comments?.map((comment: IComment,) => {
-                const author = comment.author as unknown as IUser;
-                return (
-                  <div key={comment._id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-800">{author.name}</span>
-                        <span 
-                          className={`text-xs px-2 py-1 rounded-full ${
-                            author.role === 'manager' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-green-100 text-green-700'
-                          }`}
-                        >
-                          {author.role === 'manager' ? 'Manager' : 'Developer'}
-                        </span>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        {new Date(comment.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-gray-700 leading-relaxed">{comment.content}</p>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          <form onSubmit={handleAddComment} className="border-t pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Add Comment or Update
-            </label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
-              rows={3}
-              placeholder="Share progress updates, ask questions, or provide feedback..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              disabled={isSubmitting}
-              required
-            ></textarea>
-            <div className="flex justify-between items-center">
-              <p className="text-xs text-gray-500">
-                💡 Keep your team informed with regular updates
-              </p>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
-              >
-                <MessageSquare size={16} />
-                {isSubmitting ? 'Posting...' : 'Post Comment'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

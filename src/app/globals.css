@@ -46,6 +46,17 @@
   .input {
     @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100/80 transition-all duration-200 outline-none;
   }
+
+  /* Modal Styles */
+  .modal-backdrop {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4;
+    z-index: 99;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto;
+    z-index: 999;
+  }
 }
 
 /* Utilities */
@@ -61,6 +72,10 @@
   .hover-glow {
     @apply hover:shadow-[0_0_20px_rgba(59,130,246,0.3)];
   }
+
+  .swal2-container {
+  z-index: 99999 !important; 
+}
 
   /* Custom Animations */
   @keyframes fadeIn {
