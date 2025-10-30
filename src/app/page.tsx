@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { LogIn, UserPlus, Mail, Lock, User, Briefcase, Code, Sparkles, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 

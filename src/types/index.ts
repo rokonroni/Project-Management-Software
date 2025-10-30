@@ -6,7 +6,7 @@ export interface IUser {
   _id: string;
   name: string;
   email: string;
-  role: 'manager' | 'developer';
+  role: "manager" | "developer";
   password?: string;
   createdAt: Date;
 }
@@ -16,7 +16,7 @@ export interface IProject {
   title: string;
   description: string;
   createdBy: string | IUser;
-  status: 'planning' | 'in-progress' | 'completed' | 'on-hold';
+  status: "planning" | "in-progress" | "completed" | "on-hold";
   startDate: Date;
   deadline: Date;
   createdAt: Date;
@@ -29,8 +29,8 @@ export interface ITask {
   description: string;
   assignedTo: string | IUser;
   createdBy: string | IUser;
-  status: 'pending' | 'in-progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
+  status: "pending" | "in-progress" | "completed";
+  priority: "low" | "medium" | "high";
   deadline: Date;
   completedAt?: Date;
   createdAt: Date;
@@ -42,7 +42,7 @@ export interface ISubTask {
   title: string;
   description?: string;
   createdBy: string | IUser;
-  status: 'pending' | 'in-progress' | 'completed';
+  status: "pending" | "in-progress" | "completed";
   deadline: Date;
   completedAt?: Date;
   createdAt: Date;
@@ -51,9 +51,9 @@ export interface ISubTask {
 export interface IComment {
   _id: string | null | undefined;
   content: string;
-  author: mongoose.Types.ObjectId;
+  author: string | IUser; // This will be populated with user data
   taskId: mongoose.Types.ObjectId;
-  taskType: 'Task' | 'SubTask';
+  taskType: "Task" | "SubTask";
   createdAt: Date;
 }
 
@@ -66,7 +66,7 @@ export interface RegisterCredentials {
   name: string;
   email: string;
   password: string;
-  role: 'manager' | 'developer';
+  role: "manager" | "developer";
 }
 
 export interface AuthResponse {
@@ -83,7 +83,11 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
-export type TaskStatus = 'pending' | 'in-progress' | 'completed';
-export type Priority = 'low' | 'medium' | 'high';
-export type UserRole = 'manager' | 'developer';
-export type ProjectStatus = 'planning' | 'in-progress' | 'completed' | 'on-hold';
+export type TaskStatus = "pending" | "in-progress" | "completed";
+export type Priority = "low" | "medium" | "high";
+export type UserRole = "manager" | "developer";
+export type ProjectStatus =
+  | "planning"
+  | "in-progress"
+  | "completed"
+  | "on-hold";

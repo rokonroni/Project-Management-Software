@@ -9,6 +9,8 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Project Management System',
   description: 'Manage your projects and tasks efficiently',
+  icons: '/project-management.png',
+
 };
 
 export default function RootLayout({

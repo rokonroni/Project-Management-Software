@@ -33,15 +33,22 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 
-
 export default function ManagerDashboard() {
   const router = useRouter();
-  const [projects, setProjects] = useState<(IProject & { tasks?: ITask[] })[]>([]);
+  const [projects, setProjects] = useState<(IProject & { tasks?: ITask[] })[]>(
+    []
+  );
   const [developers, setDevelopers] = useState<IUser[]>([]);
-  const [selectedProject, setSelectedProject] = useState<(IProject & { tasks?: ITask[] }) | null>(null);
+  const [selectedProject, setSelectedProject] = useState<
+    (IProject & { tasks?: ITask[] }) | null
+  >(null);
   const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
-  const [showCreateTaskModal, setShowCreateTaskModal] = useState<string | null>(null);
-  const [showCommentModal, setShowCommentModal] = useState<(ITask & { comments?: IComment[] }) | null>(null);
+  const [showCreateTaskModal, setShowCreateTaskModal] = useState<string | null>(
+    null
+  );
+  const [showCommentModal, setShowCommentModal] = useState<
+    (ITask & { comments?: IComment[] }) | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<IUser | null>(null);
 
@@ -238,7 +245,16 @@ export default function ManagerDashboard() {
 
       if (result.success) {
         toast.success("Task created and assigned! ✅");
-        fetchData();
+        await fetchData();
+
+        // Update the selected project with the latest data
+        if (selectedProject && selectedProject._id === projectId) {
+          const updatedProject = projects.find((p) => p._id === projectId);
+          if (updatedProject) {
+            setSelectedProject(updatedProject);
+          }
+        }
+
         setShowCreateTaskModal(null);
       } else {
         toast.error(result.error || "Failed to create task");
@@ -262,7 +278,7 @@ export default function ManagerDashboard() {
     });
 
     if (!result.isConfirmed) return;
-  
+
     const loadingToast = toast.loading("Deleting task...");
 
     try {
@@ -308,7 +324,7 @@ export default function ManagerDashboard() {
 
   const handleAddComment = async (content: string) => {
     if (!showCommentModal) return false;
-    
+
     try {
       const token = localStorage.getItem("token");
       const res = await fetch("/api/comments", {
@@ -317,7 +333,11 @@ export default function ManagerDashboard() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ content, taskId: showCommentModal._id, taskType: "Task" }),
+        body: JSON.stringify({
+          content,
+          taskId: showCommentModal._id,
+          taskType: "Task",
+        }),
       });
 
       if (res.ok) {
@@ -365,12 +385,17 @@ export default function ManagerDashboard() {
   };
 
   const totalProjects = projects.length;
-  const totalTasks = projects.reduce((acc, p) => acc + (p.tasks?.length || 0), 0);
-  const completedTasks = projects.reduce(
-    (acc, p) => acc + (p.tasks?.filter((t) => t.status === "completed").length || 0),
+  const totalTasks = projects.reduce(
+    (acc, p) => acc + (p.tasks?.length || 0),
     0
   );
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const completedTasks = projects.reduce(
+    (acc, p) =>
+      acc + (p.tasks?.filter((t) => t.status === "completed").length || 0),
+    0
+  );
+  const completionRate =
+    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   if (loading) {
     return <LoadingSpinner message="Loading dashboard..." />;
@@ -442,15 +467,16 @@ export default function ManagerDashboard() {
             title="No projects yet"
             description="Create your first project to get started!"
             action={{
-              label: 'Create Project',
-              onClick: () => setShowCreateProjectModal(true)
+              label: "Create Project",
+              onClick: () => setShowCreateProjectModal(true),
             }}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => {
               const completedTasks =
-                project.tasks?.filter((t) => t.status === "completed").length || 0;
+                project.tasks?.filter((t) => t.status === "completed").length ||
+                0;
               const totalTasks = project.tasks?.length || 0;
 
               return (
@@ -466,10 +492,15 @@ export default function ManagerDashboard() {
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                         <Folder className="w-6 h-6 text-white" />
                       </div>
-                      <Badge variant={
-                        project.status === "completed" ? "success" :
-                        project.status === "in-progress" ? "primary" : "warning"
-                      }>
+                      <Badge
+                        variant={
+                          project.status === "completed"
+                            ? "success"
+                            : project.status === "in-progress"
+                            ? "primary"
+                            : "warning"
+                        }
+                      >
                         {project.status}
                       </Badge>
                     </div>
@@ -558,10 +589,15 @@ export default function ManagerDashboard() {
                 <Calendar size={14} />
                 {formatDate(showCommentModal.deadline)}
               </span>
-              <Badge variant={
-                showCommentModal.status === "completed" ? "success" :
-                showCommentModal.status === "in-progress" ? "primary" : "warning"
-              }>
+              <Badge
+                variant={
+                  showCommentModal.status === "completed"
+                    ? "success"
+                    : showCommentModal.status === "in-progress"
+                    ? "primary"
+                    : "warning"
+                }
+              >
                 {showCommentModal.status}
               </Badge>
             </div>
@@ -569,7 +605,7 @@ export default function ManagerDashboard() {
 
           <CommentSection
             comments={showCommentModal.comments || []}
-            currentUserId={user?._id || ''}
+            currentUserId={user?._id || ""}
             onAddComment={handleAddComment}
             onDeleteComment={handleDeleteComment}
             placeholder="Write a comment..."
@@ -582,7 +618,13 @@ export default function ManagerDashboard() {
 }
 
 // Create Project Modal Component
-function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate: (data: any) => void }) {
+function CreateProjectModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (data: any) => void;
+}) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -607,7 +649,9 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
           label="Project Title"
           name="title"
           value={formData.title}
-          onChange={(value: string) => setFormData({ ...formData, title: value })}
+          onChange={(value: string) =>
+            setFormData({ ...formData, title: value })
+          }
           placeholder="Enter project name"
           required
         />
@@ -616,7 +660,9 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
           label="Description"
           name="description"
           value={formData.description}
-          onChange={(value: string) => setFormData({ ...formData, description: value })}
+          onChange={(value: string) =>
+            setFormData({ ...formData, description: value })
+          }
           placeholder="Describe your project goals and objectives"
           rows={4}
           required
@@ -627,7 +673,9 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
           type="date"
           name="deadline"
           value={formData.deadline}
-          onChange={(value: string) => setFormData({ ...formData, deadline: value })}
+          onChange={(value: string) =>
+            setFormData({ ...formData, deadline: value })
+          }
           required
         />
 
@@ -733,10 +781,15 @@ function ProjectDetailModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={
-                      task.status === "completed" ? "success" :
-                      task.status === "in-progress" ? "primary" : "warning"
-                    }>
+                    <Badge
+                      variant={
+                        task.status === "completed"
+                          ? "success"
+                          : task.status === "in-progress"
+                          ? "primary"
+                          : "warning"
+                      }
+                    >
                       {task.status}
                     </Badge>
                     <button
@@ -758,15 +811,15 @@ function ProjectDetailModal({
 }
 
 // Create Task Modal Component
-function CreateTaskModal({ 
-  projectId, 
-  developers, 
-  onClose, 
-  onCreate 
-}: { 
-  projectId: string; 
-  developers: IUser[]; 
-  onClose: () => void; 
+function CreateTaskModal({
+  projectId,
+  developers,
+  onClose,
+  onCreate,
+}: {
+  projectId: string;
+  developers: IUser[];
+  onClose: () => void;
   onCreate: (projectId: string, data: any) => void;
 }) {
   const [formData, setFormData] = useState({
@@ -806,7 +859,9 @@ function CreateTaskModal({
           label="Task Title"
           name="title"
           value={formData.title}
-          onChange={(value: string) => setFormData({ ...formData, title: value })}
+          onChange={(value: string) =>
+            setFormData({ ...formData, title: value })
+          }
           placeholder="Enter task name"
           required
         />
@@ -815,7 +870,9 @@ function CreateTaskModal({
           label="Description"
           name="description"
           value={formData.description}
-          onChange={(value: string) => setFormData({ ...formData, description: value })}
+          onChange={(value: string) =>
+            setFormData({ ...formData, description: value })
+          }
           placeholder="Describe the task requirements"
           rows={3}
           required
@@ -825,7 +882,9 @@ function CreateTaskModal({
           label="Assign To"
           name="assignedTo"
           value={formData.assignedTo}
-          onChange={(value: string) => setFormData({ ...formData, assignedTo: value })}
+          onChange={(value: string) =>
+            setFormData({ ...formData, assignedTo: value })
+          }
           options={developerOptions}
           placeholder="Select Developer"
           required
@@ -836,7 +895,9 @@ function CreateTaskModal({
             label="Priority"
             name="priority"
             value={formData.priority}
-            onChange={(value: string) => setFormData({ ...formData, priority: value })}
+            onChange={(value: string) =>
+              setFormData({ ...formData, priority: value })
+            }
             options={priorityOptions}
           />
 
@@ -845,7 +906,9 @@ function CreateTaskModal({
             type="date"
             name="deadline"
             value={formData.deadline}
-            onChange={(value: string) => setFormData({ ...formData, deadline: value })}
+            onChange={(value: string) =>
+              setFormData({ ...formData, deadline: value })
+            }
             required
           />
         </div>

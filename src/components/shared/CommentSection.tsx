@@ -1,8 +1,6 @@
-
-import { useState } from 'react';
-import { MessageSquare, Send, Trash2 } from 'lucide-react';
-import { IComment, IUser } from '@/types';
-import { formatDate } from '@/lib/utils';
+import { IComment, IUser } from "@/types";
+import { MessageSquare, Send, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 interface CommentSectionProps {
   comments: IComment[];
@@ -18,10 +16,10 @@ export function CommentSection({
   currentUserId,
   onAddComment,
   onDeleteComment,
-  placeholder = 'Write a comment...',
+  placeholder = "Write a comment...",
   showRoleBadge = true,
 }: CommentSectionProps) {
-  const [newComment, setNewComment] = useState('');
+  const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,7 +29,7 @@ export function CommentSection({
     setIsSubmitting(true);
     const success = await onAddComment(newComment);
     if (success) {
-      setNewComment('');
+      setNewComment("");
     }
     setIsSubmitting(false);
   };
@@ -62,7 +60,7 @@ export function CommentSection({
             className="btn btn-primary flex items-center gap-2"
           >
             <Send size={16} />
-            {isSubmitting ? 'Posting...' : 'Post Comment'}
+            {isSubmitting ? "Posting..." : "Post Comment"}
           </button>
         </div>
       </form>
@@ -80,16 +78,18 @@ export function CommentSection({
               <MessageSquare size={32} className="text-blue-600" />
             </div>
             <p className="text-gray-500 font-medium">No comments yet</p>
-            <p className="text-sm text-gray-400 mt-1">Start the conversation!</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Start the conversation!
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
             {comments.map((comment) => {
-              const author = comment.author as unknown as IUser;
-              const isOwner =
-                (typeof comment.author === 'string'
-                  ? comment.author
-                  : (comment.author as any)._id) === currentUserId;
+              const author =
+                typeof comment.author === "string"
+                  ? { _id: comment.author, name: "Unknown", role: "developer" }
+                  : (comment.author as IUser);
+              const isOwner = author._id === currentUserId;
 
               return (
                 <div
@@ -101,9 +101,9 @@ export function CommentSection({
                       <div className="flex items-center gap-2 mb-2">
                         <div
                           className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                            author.role === 'manager'
-                              ? 'bg-gradient-to-br from-blue-500 to-blue-600'
-                              : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                            author.role === "manager"
+                              ? "bg-gradient-to-br from-blue-500 to-blue-600"
+                              : "bg-gradient-to-br from-purple-500 to-purple-600"
                           }`}
                         >
                           {author.name.charAt(0).toUpperCase()}
@@ -116,12 +116,14 @@ export function CommentSection({
                             {showRoleBadge && (
                               <span
                                 className={`badge text-xs ${
-                                  author.role === 'manager'
-                                    ? 'badge-primary'
-                                    : 'badge-purple'
+                                  author.role === "manager"
+                                    ? "badge-primary"
+                                    : "badge-purple"
                                 }`}
                               >
-                                {author.role === 'manager' ? '👔 Manager' : '💻 Developer'}
+                                {author.role === "manager"
+                                  ? "👔 Manager"
+                                  : "💻 Developer"}
                               </span>
                             )}
                           </div>
@@ -136,7 +138,9 @@ export function CommentSection({
                     </div>
                     {isOwner && (
                       <button
-                        onClick={() => comment._id && onDeleteComment(comment._id)}
+                        onClick={() =>
+                          comment._id && onDeleteComment(comment._id)
+                        }
                         className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Delete Comment"
                       >
