@@ -265,7 +265,7 @@ export default function LoginPage() {
 
                 {!isLogin && (
                   <div className="space-y-2 animate-slideDown">
-                    <label className="block text-sm font-semibold text-gray-700">
+                    <label className="block text-sm font-semibold text-white">
                       <Briefcase size={16} className="inline mr-2" />
                       Select Your Role
                     </label>
