@@ -2,7 +2,7 @@
 
 A modern, full-stack project management solution built with Next.js 15.5, MongoDB, and TypeScript. Features role-based access control, real-time task management, and team collaboration tools.
 
-![Project Management Software](https://rokonroni-pms.vercel.app/)
+[@Project Management Software](https://rokonroni-pms.vercel.app/)
 
 ## 🌟 Features
 
@@ -121,15 +121,19 @@ The application uses JWT-based authentication with two roles:
 
 ### Manager Dashboard
 
-![Manager Dashboard](https://your-screenshot-url.com)
+![Manager Dashboard](https://drive.google.com/file/d/1SGR49EvPuNInM9UyVPVVOsIN2WtlQdIy/view?usp=sharing)
 
 ### Developer Dashboard
 
-![Developer Dashboard](https://your-screenshot-url.com)
+![Developer Dashboard](https://drive.google.com/file/d/1YyZyNWHmkFvQwFNIEyimTjPI7hdVzH1T/view?usp=sharing)
 
-### Task Management
+### Login Page
 
-![Task Management](https://your-screenshot-url.com)
+![Login Page](https://drive.google.com/file/d/1CGEQDuXUe31Y8EPN0fFRxK6urOvJX4JB/view?usp=sharing)
+
+### Registration Page
+
+![Registration Page](https://drive.google.com/file/d/1ewBSB2FaUKqFSnpI0isVbc1usZnzJB9E/view?usp=sharing)
 
 ## 🤝 Contributing
 
@@ -159,5 +163,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - All contributors and supporters
 
 ---
-
-Made with ❤️ by Rokon Roni
